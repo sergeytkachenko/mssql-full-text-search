@@ -1,0 +1,43 @@
+<html xmlns:th="http://www.w3.org/1999/xhtml">
+<head>
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid black;
+            font-size: 12px;
+            font-family: Tahoma;
+        }
+
+        td, th {
+            border: 1px solid #aaa;
+        }
+    </style>
+</head>
+<body>
+    <h2 th:text="${q}"></h2>
+    <h4 th:text="${executeTime}"></h4>
+    <table border="1">
+        <tr>
+            <th>title</th>
+            <th>sender</th>
+            <th>recepient</th>
+            <th>copyRecepient</th>
+            <th>detailResult</th>
+            <th>rank</th>
+            <th>body</th>
+        </tr>
+        <tr th:each="activity : ${activities}">
+            <td th:text="${activity.title}"></td>
+            <td th:text="${activity.sender}"></td>
+            <td th:text="${activity.recepient}"></td>
+            <td th:text="${activity.copyRecepient}"></td>
+            <td th:text="${activity.detailResult}"></td>
+            <td th:text="${activity.rank}" style="color: red; font-weight: bold;"></td>
+            <td th:text="${activity.body}"></td>
+        </tr>
+    </table>
+    <p th:text="${resultCount}" xmlns:th="http://www.w3.org/1999/xhtml">resultCount</p>
+</body>
+
+</html>
