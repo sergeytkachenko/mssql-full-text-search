@@ -29,8 +29,8 @@ public class IndexController {
         DataSource dataSource = getDataSource();
         Connection connection = dataSource.getConnection();
         Statement stmt = connection.createStatement();
-        String sql = String.format("SELECT a1.*, a2.RANK FROM Activity a1\n" +
-                "\tINNER JOIN FREETEXTTABLE(Activity, *, '%s', LANGUAGE 1049, 30) as a2 ON a1.id = a2.[KEY]", q);
+        String sql = String.format("SELECT top 30 a1.*, a2.RANK FROM Activity a1\n" +
+                "\tINNER JOIN FREETEXTTABLE(Activity, title, '%s', LANGUAGE 1049, 30) as a2 ON a1.id = a2.[KEY]", q);
         long startTime = System.nanoTime();
         ResultSet rs = stmt.executeQuery(sql);
         ArrayList<Activity> activities = new ArrayList<>();
