@@ -44,12 +44,11 @@ public class IndexController {
 
     @RequestMapping("/")
     public String greeting(@RequestParam(value="q", required=false) String q, Model model) throws SQLException, IOException {
-        String url = String.format("http://localhost:9200/demo/_search?size=50&q=title:%s", URLEncoder.encode(q, "UTF-8"));
+        String url = String.format("http://localhost:9200/demo/_search?size=30&q=title:%s", URLEncoder.encode(q, "UTF-8"));
         String content = getContent(url);
         HashMap map = new ObjectMapper().readValue(content, HashMap.class);
         LinkedHashMap hitsWrap = (LinkedHashMap) map.get("hits");
         int took = (int) map.get("took");
-        System.out.println(hitsWrap);
         ArrayList<LinkedHashMap> hits = (ArrayList<LinkedHashMap>)hitsWrap.get("hits");
         ArrayList<Activity> activities = new ArrayList<>();
         hits.forEach(hit -> {
