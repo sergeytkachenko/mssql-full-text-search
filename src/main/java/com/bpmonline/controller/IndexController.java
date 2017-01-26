@@ -1,6 +1,5 @@
 package com.bpmonline.controller;
 
-import com.bpmonline.model.Activity;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -8,8 +7,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import javax.sql.DataSource;
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.sql.*;
-import java.util.ArrayList;
 
 @Controller
 public class IndexController {
@@ -24,46 +28,26 @@ public class IndexController {
     }
 
     @RequestMapping("/")
-    public String greeting(@RequestParam(value="q", required=false) String q, Model model) throws SQLException {
-
+    public String greeting(@RequestParam(value="q", required=false) String q, Model model) throws SQLException, IOException {
         DataSource dataSource = getDataSource();
         Connection connection = dataSource.getConnection();
         Statement stmt = connection.createStatement();
-        String sql = String.format("SELECT top 30 a1.*, a2.RANK FROM Activity a1\n" +
-                "\tINNER JOIN FREETEXTTABLE(Activity, title, '%s', LANGUAGE 1049, 30) as a2 ON a1.id = a2.[KEY] ORDER BY a2.Rank DESC", q);
-        long startTime = System.nanoTime();
+        ClassLoader classLoader = getClass().getClassLoader();
+        String fileName = "sql/example.sql";
+        File file = new File(classLoader.getResource(fileName).getFile());
+        String sqlString = readFile(file.getAbsolutePath(), StandardCharsets.UTF_8);
+        String sql = String.format(sqlString, q);
+        System.out.println(sql);
         ResultSet rs = stmt.executeQuery(sql);
-        ArrayList<Activity> activities = new ArrayList<>();
+        int i = 0;
         while (rs.next()) {
-            String title = rs.getString("title");
-            String body = rs.getString("body");
-            String rank = rs.getString("RANK");
-            String sender = rs.getString("sender");
-            String detailResult = rs.getString("detailedResult");
-            String recepient = rs.getString("recepient");
-            String copyRecepient = rs.getString("copyRecepient");
-            Activity activity = new Activity();
-            activity.title = title;
-            body = replaceTags(body);
-            body = body.replaceAll("&nbsp;", "");
-            activity.body = body;
-            activity.rank = rank;
-            activity.sender = sender;
-            activity.detailResult = detailResult;
-            activity.recepient = recepient;
-            activity.copyRecepient = copyRecepient;
-            activities.add(activity);
+            i++;
         }
-        long executeTime = System.nanoTime() - startTime;
-        model.addAttribute("resultCount", activities.size());
-        model.addAttribute("activities", activities);
-        model.addAttribute("executeTime", executeTime / 1000000 + " ms");
-        model.addAttribute("q", q);
         return "index";
     }
 
-    private String replaceTags(String value) {
-        return value.replaceAll("(<([\\s/]*(a|abbr|acronym|address|applet|area|article|aside|audio|b|base|basefont|bdi|bdo|bgsound|blockquote|big|body|blink|br|button|canvas|caption|center|cite|code|col|colgroup|command|comment|datalist|dd|del|details|dfn|dir|div|dl|dt|em|embed|fieldset|figcaption|figure|font|form|footer|frame|frameset|h1|h2|h3|h4|h5|h6|head|header|hgroup|hr|html|i|iframe|img|input|ins|isindex|kbd|keygen|label|legend|li|link|main|map|marquee|mark|menu|meta|meter|nav|nobr|noembed|noframes|noscript|object|ol|optgroup|option|output|p|param|plaintext|pre|progress|q|rp|rt|ruby|s|samp|script|section|select|small|span|source|strike|strong|style|sub|summary|sup|table|tbody|td|textarea|tfoot|th|thead|time|title|tr|tt|u|ul|var|video|wbr|xmp)(\\b|\\/)[^>]*)>)", "");
+    static String readFile(String path, Charset encoding) throws IOException {
+        byte[] encoded = Files.readAllBytes(Paths.get(path));
+        return new String(encoded, encoding);
     }
-
 }
