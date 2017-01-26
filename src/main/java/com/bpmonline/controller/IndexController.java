@@ -1,64 +1,70 @@
 package com.bpmonline.controller;
 
 import com.bpmonline.model.Activity;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.search.SearchType;
+import org.elasticsearch.client.transport.TransportClient;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.transport.InetSocketTransportAddress;
+import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.transport.client.PreBuiltTransportClient;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
-import javax.sql.DataSource;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.*;
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 
 @Controller
 public class IndexController {
 
-    public javax.sql.DataSource getDataSource() {
-        DriverManagerDataSource dataSource = new DriverManagerDataSource();
-        dataSource.setDriverClassName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
-        dataSource.setUrl("jdbc:sqlserver://localhost\\mssql2014:49172;databaseName=work");
-        dataSource.setUsername("sergey");
-        dataSource.setPassword("!Prisoner33!");
-        return dataSource;
+    public String getContent(String url) throws IOException {
+        URL obj = new URL(url);
+        HttpURLConnection con = (HttpURLConnection) obj.openConnection();
+        BufferedReader in = new BufferedReader(
+                new InputStreamReader(con.getInputStream()));
+        String inputLine;
+        StringBuffer response = new StringBuffer();
+
+        while ((inputLine = in.readLine()) != null) {
+            response.append(inputLine);
+        }
+        in.close();
+        return response.toString();
     }
 
     @RequestMapping("/")
-    public String greeting(@RequestParam(value="q", required=false) String q, Model model) throws SQLException {
-
-        DataSource dataSource = getDataSource();
-        Connection connection = dataSource.getConnection();
-        Statement stmt = connection.createStatement();
-        String sql = String.format("SELECT a1.*, a2.RANK FROM Activity a1\n" +
-                "\tINNER JOIN FREETEXTTABLE(Activity, *, '%s', LANGUAGE 1049, 30) as a2 ON a1.id = a2.[KEY]", q);
-        long startTime = System.nanoTime();
-        ResultSet rs = stmt.executeQuery(sql);
+    public String greeting(@RequestParam(value="q", required=false) String q, Model model) throws SQLException, IOException {
+        String url = String.format("http://localhost:9200/demo/_search?q=%s", URLEncoder.encode(q, "UTF-8"));
+        String content = getContent(url);
+        HashMap map = new ObjectMapper().readValue(content, HashMap.class);
+        LinkedHashMap hitsWrap = (LinkedHashMap) map.get("hits");
+        ArrayList<LinkedHashMap> hits = (ArrayList<LinkedHashMap>)hitsWrap.get("hits");
         ArrayList<Activity> activities = new ArrayList<>();
-        while (rs.next()) {
-            String title = rs.getString("title");
-            String body = rs.getString("body");
-            String rank = rs.getString("RANK");
-            String sender = rs.getString("sender");
-            String detailResult = rs.getString("detailedResult");
-            String recepient = rs.getString("recepient");
-            String copyRecepient = rs.getString("copyRecepient");
+        hits.forEach(hit -> {
+            LinkedHashMap source = (LinkedHashMap) hit.get("_source");
             Activity activity = new Activity();
-            activity.title = title;
-            body = replaceTags(body);
-            body = body.replaceAll("&nbsp;", "");
-            activity.body = body;
-            activity.rank = rank;
-            activity.sender = sender;
-            activity.detailResult = detailResult;
-            activity.recepient = recepient;
-            activity.copyRecepient = copyRecepient;
+            System.out.println(hit);
+            activity.title = (String) source.get("title");
+            activity.body = (String) source.get("body");
+            activity.body = replaceTags(activity.body);
+            activity.rank = (String) source.get("rank");
+            activity.detailResult = (String) source.get("detailResult");
+            activity.recepient = (String) source.get("recepient");
+            activity.copyRecepient = (String) source.get("copyRecepient");
+            activity.sender = (String) source.get("sender");
             activities.add(activity);
-        }
-        long executeTime = System.nanoTime() - startTime;
-        model.addAttribute("resultCount", activities.size());
+        });
         model.addAttribute("activities", activities);
-        model.addAttribute("executeTime", executeTime / 1000000 + " ms");
-        model.addAttribute("q", q);
         return "index";
     }
 
