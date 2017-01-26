@@ -44,20 +44,22 @@ public class IndexController {
 
     @RequestMapping("/")
     public String greeting(@RequestParam(value="q", required=false) String q, Model model) throws SQLException, IOException {
-        String url = String.format("http://localhost:9200/demo/_search?q=%s", URLEncoder.encode(q, "UTF-8"));
+        String url = String.format("http://localhost:9200/demo/_search?size=50&q=title:%s", URLEncoder.encode(q, "UTF-8"));
         String content = getContent(url);
         HashMap map = new ObjectMapper().readValue(content, HashMap.class);
         LinkedHashMap hitsWrap = (LinkedHashMap) map.get("hits");
+        int took = (int) map.get("took");
+        System.out.println(hitsWrap);
         ArrayList<LinkedHashMap> hits = (ArrayList<LinkedHashMap>)hitsWrap.get("hits");
         ArrayList<Activity> activities = new ArrayList<>();
         hits.forEach(hit -> {
             LinkedHashMap source = (LinkedHashMap) hit.get("_source");
+            double score = (double) hit.get("_score");
             Activity activity = new Activity();
-            System.out.println(hit);
             activity.title = (String) source.get("title");
             activity.body = (String) source.get("body");
             activity.body = replaceTags(activity.body);
-            activity.rank = (String) source.get("rank");
+            activity.rank = String.valueOf(score);
             activity.detailResult = (String) source.get("detailResult");
             activity.recepient = (String) source.get("recepient");
             activity.copyRecepient = (String) source.get("copyRecepient");
@@ -65,6 +67,8 @@ public class IndexController {
             activities.add(activity);
         });
         model.addAttribute("activities", activities);
+        model.addAttribute("executeTime", took + " ms");
+        model.addAttribute("q", q);
         return "index";
     }
 
